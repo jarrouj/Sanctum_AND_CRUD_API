@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\LogoutController;
+use App\Http\Controllers\Auth\RegisterController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -20,4 +22,8 @@ Route::get('/', function () {
 
 Route::prefix('auth')->group(function(){
    route::post('/login',LoginController::class);
+   route::post('/logout',LogoutController::class);
+   route::post('/register',RegisterController::class);
+
+
 });
