@@ -12,6 +12,12 @@ class LogoutController extends Controller
      */
     public function __invoke(Request $request)
     {
+        auth()->guard('web')->logout();
         $request->user()->currentAccessToken()->delete();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Logged out successfully.',
+        ]);
     }
 }

@@ -5,38 +5,67 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\QueryBuilder\QueryBuilder;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedSort;
+use Illuminate\Validation\Rule;
+
+
 
 class UserController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
+    // public function index()
+    // {
+    //     $users = QueryBuilder::for(User::class)
+    //     ->allowedFilters([
+    //         AllowedFilter::exact('name'),
+    //     ])
+    //     ->paginate(10);
+    //      return response()->json($users);
+
+    // }
+
+
     public function index()
     {
-    //    return view('welcome');
+        $users = QueryBuilder::for(User::class)
+        ->allowedFilters([
+            AllowedFilter::exact('name'),
+            AllowedFilter::exact('email'),
+            // Add more filters as needed
+        ])
+        ->allowedSorts([
+            AllowedSort::field('id'),
+
+            // Add more sorts as needed
+        ])
+        ->paginate(3);
+
+    return response()->json($users);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+
     public function store(Request $request)
 {
+    $user = auth()->user();
+
     $validatedData = $request->validate([
         'name' => 'required|string',
-        'email' => 'required|email|unique:users',
+        'email' => [
+            'required',
+            Rule::unique('users')->ignore($user->id),
+        ],
         'password' => 'required|min:8',
+        'role' => 'required|exists:roles,name'
     ]);
 
     $user = User::create([
-
         'name' => $validatedData['name'],
         'email' => $validatedData['email'],
         'password' => bcrypt($validatedData['password']),
@@ -44,15 +73,27 @@ class UserController extends Controller
 
 
 
-    return response([
+
+
+
+        $user->assignRole($validatedData['role']);
+
+
+
+        $roles = $user->getRoleNames();
+
+
+    return response()->json([
         'success' => true,
         'data' => [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'role' => $roles,
+
+
 
         ],
-
     ]);
 }
 
@@ -84,20 +125,13 @@ class UserController extends Controller
     }
 
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request,User $user)
     {
-        $user = User::find($id);
+
 
         if (!$user) {
             return response()->json(['message' => 'User not found'], 404);
@@ -105,7 +139,7 @@ class UserController extends Controller
 
         $validatedData = $request->validate([
             'name' => 'required|string',
-            'email' => 'required|email|unique:users,email,' . $id,
+            'email' => 'required|email|unique:users,email,',
             'password' => 'required|min:8',
         ]);
 
@@ -121,7 +155,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                
+
 
             ],
         ]);
@@ -131,20 +165,31 @@ class UserController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(User $user)
     {
-        $user = User::find($id);
+
 
     if (!$user) {
         return response([
             'success'=>false,
-        ])->json(['message' => 'User not found'], 404);
+        ],404);
     }
+$user->delete();
 
-    $user->delete();
 
     return response([
         'success'=>true,
-    ])->json(['message' => 'User deleted successfully']);
+    ],204);
+    }
+
+
+
+    public function assignRoleToUser()
+    {
+        $user = User::where('name', 'Admin')->first();
+        $role = Role::where('name', 'admin')->first();
+
+        $user->assignRole($role);
+
     }
 }
