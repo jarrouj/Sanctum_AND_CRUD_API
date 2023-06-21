@@ -4,79 +4,91 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\AllowedSort;
+use Spatie\QueryBuilder\QueryBuilder;
+use Laravel\Pennant\Feature;
 
 class CategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
+{
+    $categories = QueryBuilder::for(Category::class)
+        ->allowedFilters([
+            'name',
+        ])
+        ->where('is_active', true)
+        ->allowedSorts([
+            'id',
+        ])
+        ->with('products')
+        ->paginate(3);
+
+    return response()->json($categories);
+}
+
+   public function store(Request $request)
+{
+    $validatedData = $request->validate([
+        'name' => 'required|string|max:20',
+        'is_active' => 'required|nullable|boolean',
+    ]);
+
+    $category = Category::create([
+        'name' => $validatedData['name'],
+        'is_active' => $validatedData['is_active'] ?? true,
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'data' => $category,
+    ]);
+}
+
+
+
+    public function show(Category $category)
+{
+    return response([
+        'success' => true,
+        'data' => $category,
+    ]);
+}
+
+
+public function update(Request $request, Category $category)
+{
+
+    $validatedData = $request->validate([
+        'name' => 'required|string|max:255',
+        'is_active' => 'required|boolean',
+    ]);
+
+
+    $category->name = $validatedData['name'];
+    $category->is_active = $validatedData['is_active'];
+    $category->save();
+
+    return response([
+        'success' => true,
+        'data' => $category,
+    ]);
+}
+
+    public function destroy(Category $category)
     {
-        //
-    }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'name' => 'required|string|max:20',
-        ]);
+        if (!$category) {
+            return response([
+                'success' => false,
+            ], 404);
+        }
+        $category->delete();
 
-        $category = Category::create([
-            'name' => $validatedData['name'],
-            'is_active' => $request->input('is_active', false),
-        ]);
 
-        return response()->json([
+        return response([
             'success' => true,
-            'data' => [
-                'id' => $category->id,
-                'name' => $category->name,
-                'is_active' => $category->is_active,
-            ],
-        ]);
-    }
-
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        ], 204);
     }
 }

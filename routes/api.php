@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\LogoutController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SeederController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
@@ -51,17 +52,14 @@ Route::prefix('auth')->group(function(){
 
 Route::group(['middleware' => ['auth:sanctum', 'role:super-admin']], function () {
     Route::resource('users', UserController::class);
-    // Route::get('/assign-role', [UserController::class,'assignRoleToUser']);
-
+    Route::resource('categories', CategoryController::class);
+    route::resource('products',ProductController::class);
 });
 
 
 
 
-Route::group(['middleware' => ['auth:sanctum', 'role:super-admin']], function () {
-    Route::resource('category', CategoryController::class);
 
-});
 
 
 
