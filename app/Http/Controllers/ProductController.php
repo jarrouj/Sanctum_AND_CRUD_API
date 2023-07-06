@@ -1,6 +1,8 @@
 <?php
 
+
 namespace App\Http\Controllers;
+use Illuminate\Support\Facades\Cache;
 
 use App\Models\Category;
 use App\Models\Product;
@@ -9,6 +11,10 @@ use Illuminate\Validation\Rule;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\AllowedSort;
 use Spatie\QueryBuilder\QueryBuilder;
+use App\Exports\ProductsExport;
+use App\Imports\ProductsImport;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductController extends Controller
 {
@@ -17,7 +23,8 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $products = QueryBuilder::for(Product::class)
+        $products =  Cache::remember('products', 10, function () {
+            return  QueryBuilder::for(Product::class)
         ->allowedFilters([
             'name',
 
@@ -27,56 +34,64 @@ class ProductController extends Controller
 
         ])
         ->paginate(3);
+    });
 
-    return response()->json($products);
+    return response([
+        'success'=>true,
+        'data'=>[
+            $products,
+
+        ]
+    ]);
+
     }
 
 
     public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'name' => 'required',
-            'price' => 'required|numeric',
-            'image' => 'nullable|required|image',
-            'description' => 'required',
-            'category_id' => [
-                'required',
-                Rule::exists('categories', 'id')
-            ]
-        ]);
+{
+    $validatedData = $request->validate([
+        'name' => 'required',
+        'price' => 'required|numeric',
+        'image' => 'nullable|required|image',
+        'description' => 'required',
+        'category_id' => [
+            'required',
+            Rule::exists('categories', 'id')
+        ]
+    ]);
 
-        $imageFile = $request->file('image');
-        $filename = uniqid() . '.' . $imageFile->getClientOriginalExtension();
-        $imageFile->storeAs('public/images', $filename);
+    $imageFile = $request->file('image');
+    $filename = uniqid() . '.' . $imageFile->getClientOriginalExtension();
+    $imageFile->storeAs('public/images', $filename);
 
-        $product = Product::create([
-            'name' => $validatedData['name'],
-            'price' => $validatedData['price'],
-            'image' => $filename,
-            'description' => $validatedData['description'],
-            'category_id' => $validatedData['category_id']
-        ]);
+    $product = Product::create([
+        'name' => $validatedData['name'],
+        'price' => $validatedData['price'],
+        'image' => $filename,
+        'description' => $validatedData['description'],
+        'category_id' => $validatedData['category_id']
+    ]);
 
-        return response([
-            'success' => true,
-            'data' => $product,
-        ]);
-    }
+    Cache::put('products', $product);
+
+    return response()->json([
+        'success' => true,
+        'data' => $product,
+
+    ]);
+}
 
 
-    public function show(Product $product)
-    {
+public function show(Product $product)
+{
 
 
-        if (!$product) {
-            return response()->json(['message' => 'Product not found'], 404);
-        }
+    return response()->json([
+        'success' => true,
+        'data' => $product,
+    ]);
+}
 
-        return response([
-            'success' => true,
-            'data' => $product,
-        ]);
-    }
 
 
     public function update(Request $request, Product $product)
@@ -122,4 +137,23 @@ class ProductController extends Controller
             'success' => true,
         ], 204);
     }
+
+    public function export()
+    {
+        $fileName = 'products.csv';
+
+        return Excel::download(new ProductsExport(), $fileName);
+        // return (new ProductsExport)->download($fileName);
+
+    }
+    public function import()
+    {
+
+            Excel::import(new ProductsImport, 'prod.xlsx');
+
+            return redirect('/')->with('success', 'Import completed successfully.');
+
+    }
+
+
 }
